@@ -2,17 +2,18 @@ import numpy as np
 
 
 events = [
-    {"id": "EV001", "name": "Hội chợ sách", "ticket_price": 50000.0, "tickets_left": 200},
-    {"id": "EV002", "name": "Triển lãm nghệ thuật", "ticket_price": 75000.0, "tickets_left": 150},
-    {"id": "EV003", "name": "Workshop nấu ăn", "ticket_price": 100000.0, "tickets_left": 50},
-    {"id": "EV004", "name": "Hội chợ ẩm thực", "ticket_price": 60000.0, "tickets_left": 180},
-    {"id": "EV005", "name": "Biểu diễn âm nhạc", "ticket_price": 120000.0, "tickets_left": 100}
+    {"id": "EV001", "name": "Lễ hội âm nhạc quốc tế", "ticket_price": 150000.0, "tickets_left": 300},
+    {"id": "EV002", "name": "Triển lãm công nghệ", "ticket_price": 85000.0, "tickets_left": 250},
+    {"id": "EV003", "name": "Workshop thiết kế đồ họa", "ticket_price": 120000.0, "tickets_left": 80},
+    {"id": "EV004", "name": "Hội chợ du lịch", "ticket_price": 70000.0, "tickets_left": 400},
+    {"id": "EV005", "name": "Buổi ra mắt sách", "ticket_price": 45000.0, "tickets_left": 150}
 ]
 
 sponsors = {
-    "SP001": ("Công ty A", 5000000.0),
-    "SP002": ("Công ty B", 3000000.0),
-    "SP003": ("Công ty C", 4000000.0)
+    "SP001": ("Tập đoàn XYZ", 10000000.0),
+    "SP002": ("Công ty Du lịch ABC", 7500000.0),
+    "SP003": ("Ngân hàng Thịnh Vượng", 15000000.0),
+    "SP004": ("Tập đoàn Viễn thông VN", 8000000.0)
 }
 
 
@@ -53,21 +54,31 @@ def manage_events():
                 print("Giá vé và số lượng vé phải là số dương!")
                 continue
                 
-            events.append({
+            new_event = {
                 "id": event_id,
                 "name": name,
                 "ticket_price": price,
                 "tickets_left": tickets
-            })
-            print("Thêm sự kiện thành công!")
+            }
+            events.append(new_event)
+            print("\n=== THÊM SỰ KIỆN THÀNH CÔNG ===")
+            print(f"Mã sự kiện: {event_id}")
+            print(f"Tên sự kiện: {name}")
+            print(f"Giá vé: {price:,.0f} VNĐ")
+            print(f"Số lượng vé: {tickets}")
             
         elif choice == "2":
             # Delete event
             event_id = input("Nhập mã sự kiện cần xóa: ")
             for i, e in enumerate(events):
                 if e['id'] == event_id:
+                    deleted_event = events[i]
                     del events[i]
-                    print("Xóa sự kiện thành công!")
+                    print("\n=== XÓA SỰ KIỆN THÀNH CÔNG ===")
+                    print(f"Mã sự kiện: {deleted_event['id']}")
+                    print(f"Tên sự kiện: {deleted_event['name']}")
+                    print(f"Giá vé: {deleted_event['ticket_price']:,.0f} VNĐ")
+                    print(f"Số lượng vé còn lại: {deleted_event['tickets_left']}")
                     break
             else:
                 print("Không tìm thấy sự kiện!")
@@ -78,11 +89,17 @@ def manage_events():
             for e in events:
                 if e['id'] == event_id:
                     try:
+                        old_tickets = e['tickets_left']
                         new_tickets = int(input("Nhập số lượng vé mới: "))
                         if new_tickets < 0:
                             raise ValueError
                         e['tickets_left'] = new_tickets
-                        print("Cập nhật thành công!")
+                        print("\n=== CẬP NHẬT SỐ LƯỢNG VÉ THÀNH CÔNG ===")
+                        print(f"Mã sự kiện: {e['id']}")
+                        print(f"Tên sự kiện: {e['name']}")
+                        print(f"Số lượng vé cũ: {old_tickets}")
+                        print(f"Số lượng vé mới: {new_tickets}")
+                        print(f"Thay đổi: {new_tickets - old_tickets:+d} vé")
                     except ValueError:
                         print("Số lượng vé phải là số nguyên dương!")
                     break
