@@ -1,10 +1,10 @@
 [
   {
-    "ho_ten": "duy manh",
+    "ho_ten": "manh",
     "email": "manh@gmail.com",
     "ma_khoa_hoc": "KH001",
-    "so_luong": 34,
-    "ngay_dang_ky": "23/05/2025 15:31:07",
-    "chi_phi": 51000000
+    "so_luong": 4,
+    "ngay_dang_ky": "23/05/2025 16:07:20",
+    "chi_phi": 4500000.0
   }
 ]
