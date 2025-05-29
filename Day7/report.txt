@@ -1,0 +1,20 @@
+🎓 BÁO CÁO TỔNG KẾT TIẾN ĐỘ HỌC TẬP
+=============================================
+
+📊 THỐNG KÊ TỔNG KẾT:
+- Tổng bài tập của An: 18.0 bài
+- Điểm trung bình của An: 8.90
+
+- Tổng bài tập của Binh: 15.0 bài
+- Điểm trung bình của Binh: 7.50
+
+- Tổng bài tập của Chi: 21.0 bài
+- Điểm trung bình của Chi: 9.50
+
+- Tổng bài tập của Duc: 12.0 bài
+- Điểm trung bình của Duc: 7.00
+
+- Tổng bài tập của Manh: 18.0 bài
+- Điểm trung bình của Manh: 8.50
+
+🏆 Học viên tiến bộ nhất: Binh (tăng 1.0 điểm)
