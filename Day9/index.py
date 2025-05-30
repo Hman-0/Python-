@@ -1,224 +1,376 @@
 import mysql.connector
-from mysql.connector import errorcode
+from mysql.connector import Error
+import sys
 
-# Thông tin kết nối MySQL (sửa lại cho phù hợp)
-DB_CONFIG = {
-    'user': 'root',
-    'password': 'your_password',  # Thay bằng mật khẩu MySQL của bạn
-    'host': 'localhost',
-    'raise_on_warnings': True
-}
-
-DB_NAME = 'project_progress'
-
-def get_connection(database=None):
-    config = DB_CONFIG.copy()
-    if database:
-        config['database'] = database
-    return mysql.connector.connect(**config)
-
-def setup_database():
-    """Tạo database và các bảng nếu chưa tồn tại."""
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        # Tạo database nếu chưa có
-        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME} DEFAULT CHARACTER SET 'utf8'")
-        conn.database = DB_NAME
-
-        # Tạo bảng members
-        cursor.execute("""
+class ProjectProgressManager:
+    def __init__(self):
+        """Khởi tạo kết nối MySQL"""
+        self.connection = None
+        self.cursor = None
+        
+    def connect_to_mysql(self, host='localhost', user='root', password=''):
+        """Kết nối đến MySQL server"""
+        try:
+            self.connection = mysql.connector.connect(
+                host=host,
+                user=user,
+                password=password
+            )
+            self.cursor = self.connection.cursor()
+            print("✓ Kết nối MySQL thành công!")
+            return True
+        except Error as e:
+            print(f"✗ Lỗi kết nối MySQL: {e}")
+            return False
+    
+    def setup_database(self):
+        """
+        Tạo cơ sở dữ liệu và các bảng cần thiết
+        - Tạo database project_progress
+        - Tạo bảng members và weekly_progress
+        """
+        try:
+     
+            self.cursor.execute("CREATE DATABASE IF NOT EXISTS project_progress")
+            print("✓ Database 'project_progress' đã được tạo/kiểm tra")
+      
+            self.cursor.execute("USE project_progress")
+            
+       
+            create_members_table = """
             CREATE TABLE IF NOT EXISTS members (
                 member_id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(100),
-                role VARCHAR(50)
+                name VARCHAR(100) NOT NULL,
+                role VARCHAR(50) NOT NULL
             )
-        """)
-        # Tạo bảng weekly_progress
-        cursor.execute("""
+            """
+            self.cursor.execute(create_members_table)
+            print("✓ Bảng 'members' đã được tạo/kiểm tra")
+            
+         
+            create_progress_table = """
             CREATE TABLE IF NOT EXISTS weekly_progress (
                 progress_id INT AUTO_INCREMENT PRIMARY KEY,
-                member_id INT,
-                week_number INT,
-                hours_worked FLOAT CHECK (hours_worked >= 0),
-                tasks_completed INT,
+                member_id INT NOT NULL,
+                week_number INT NOT NULL,
+                hours_worked FLOAT NOT NULL CHECK (hours_worked >= 0),
+                tasks_completed INT NOT NULL DEFAULT 0,
                 notes TEXT,
-                FOREIGN KEY (member_id) REFERENCES members(member_id)
+                FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE
             )
-        """)
-        print("Đã thiết lập database và các bảng.")
-    except mysql.connector.Error as err:
-        print("Lỗi khi thiết lập database:", err)
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-def add_data():
-    """Thêm dữ liệu mẫu vào bảng members và weekly_progress."""
-    try:
-        conn = get_connection(DB_NAME)
-        cursor = conn.cursor()
-
-        # Thêm 5 thành viên
-        members = [
-            ("An", "Developer"),
-            ("Bình", "Tester"),
-            ("Cường", "Project Manager"),
-            ("Dương", "Developer"),
-            ("Hà", "Designer")
-        ]
-        cursor.executemany("INSERT INTO members (name, role) VALUES (%s, %s)", members)
-        conn.commit()
-
-        # Lấy member_id để thêm tiến độ
-        cursor.execute("SELECT member_id FROM members")
-        member_ids = [row[0] for row in cursor.fetchall()]
-
-        # Thêm 10 bản ghi tiến độ cho 2 tuần
-        progresses = [
-            (member_ids[0], 1, 40.0, 5, "Hoàn thành đúng hạn"),
-            (member_ids[1], 1, 38.5, 4, "Cần hỗ trợ thêm"),
-            (member_ids[2], 1, 42.0, 6, "Quản lý tốt tiến độ"),
-            (member_ids[3], 1, 36.0, 3, "Chưa hoàn thành hết nhiệm vụ"),
-            (member_ids[4], 1, 39.0, 4, "Thiết kế đẹp"),
-            (member_ids[0], 2, 41.0, 6, "Vượt chỉ tiêu"),
-            (member_ids[1], 2, 37.0, 4, "Ổn định"),
-            (member_ids[2], 2, 43.0, 7, "Xuất sắc"),
-            (member_ids[3], 2, 35.0, 3, "Cần cải thiện"),
-            (member_ids[4], 2, 40.0, 5, "Tiến bộ rõ rệt")
-        ]
-        cursor.executemany("""
-            INSERT INTO weekly_progress (member_id, week_number, hours_worked, tasks_completed, notes)
-            VALUES (%s, %s, %s, %s, %s)
-        """, progresses)
-        conn.commit()
-        print("Đã thêm dữ liệu mẫu.")
-    except mysql.connector.Error as err:
-        print("Lỗi khi thêm dữ liệu:", err)
-    finally:
-        cursor.close()
-        conn.close()
-
-def query_progress(week_number):
-    """Truy vấn tiến độ của một tuần cụ thể."""
-    try:
-        conn = get_connection(DB_NAME)
-        cursor = conn.cursor()
-        query = """
-            SELECT m.name, w.hours_worked, w.tasks_completed, w.notes
-            FROM weekly_progress w
-            JOIN members m ON w.member_id = m.member_id
-            WHERE w.week_number = %s
-            ORDER BY w.tasks_completed DESC
-            LIMIT 5
+            """
+            self.cursor.execute(create_progress_table)
+            print("✓ Bảng 'weekly_progress' đã được tạo/kiểm tra")
+            
+            self.connection.commit()
+            return True
+            
+        except Error as e:
+            print(f"✗ Lỗi tạo database/bảng: {e}")
+            return False
+    
+    def add_data(self):
         """
-        cursor.execute(query, (week_number,))
-        results = cursor.fetchall()
-        print(f"Tuần {week_number}:")
-        for row in results:
-            print(f"- {row[0]}: {row[1]} giờ, {row[2]} nhiệm vụ, Ghi chú: {row[3]}")
-    except mysql.connector.Error as err:
-        print("Lỗi khi truy vấn tiến độ:", err)
-    finally:
-        cursor.close()
-        conn.close()
+        Thêm dữ liệu mẫu vào các bảng
+        - Thêm 5 thành viên
+        - Thêm 10+ bản ghi tiến độ qua 2 tuần
+        """
+        try:
 
-def update_progress(progress_id, hours_worked, notes):
-    """Cập nhật số giờ làm việc và ghi chú của một bản ghi tiến độ."""
-    try:
-        conn = get_connection(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE weekly_progress
-            SET hours_worked = %s, notes = %s
-            WHERE progress_id = %s
-        """, (hours_worked, notes, progress_id))
-        conn.commit()
-        if cursor.rowcount:
-            print(f"Đã cập nhật bản ghi progress_id={progress_id}.")
-        else:
-            print("Không tìm thấy bản ghi để cập nhật.")
-    except mysql.connector.Error as err:
-        print("Lỗi khi cập nhật tiến độ:", err)
-    finally:
-        cursor.close()
-        conn.close()
+            self.cursor.execute("SELECT COUNT(*) FROM members")
+            member_count = self.cursor.fetchone()[0]
+            
+            if member_count == 0:
+              
+                members_data = [
+                    ('Nguyễn Văn An', 'Developer'),
+                    ('Trần Thị Bình', 'Designer'),
+                    ('Lê Văn Cường', 'Tester'),
+                    ('Phạm Thị Dung', 'Project Manager'),
+                    ('Hoàng Văn Em', 'DevOps')
+                ]
+                
+                insert_member_query = "INSERT INTO members (name, role) VALUES (%s, %s)"
+                self.cursor.executemany(insert_member_query, members_data)
+                print(f"✓ Đã thêm {len(members_data)} thành viên")
+            else:
+                print("✓ Dữ liệu thành viên đã tồn tại")
+       
+            self.cursor.execute("SELECT COUNT(*) FROM weekly_progress")
+            progress_count = self.cursor.fetchone()[0]
+            
+            if progress_count == 0:
 
-def delete_progress(week_number):
-    """Xóa các bản ghi tiến độ của một tuần cụ thể."""
-    try:
-        conn = get_connection(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM weekly_progress WHERE week_number = %s", (week_number,))
-        conn.commit()
-        if cursor.rowcount:
-            print(f"Đã xóa {cursor.rowcount} bản ghi tuần {week_number}.")
-        else:
-            print("Không có bản ghi nào bị xóa.")
-    except mysql.connector.Error as err:
-        print("Lỗi khi xóa tiến độ:", err)
-    finally:
-        cursor.close()
-        conn.close()
-
-def generate_summary():
-    """Tạo báo cáo tổng kết cho từng thành viên."""
-    try:
-        conn = get_connection(DB_NAME)
-        cursor = conn.cursor()
-        query = """
-            SELECT m.name, SUM(w.hours_worked), SUM(w.tasks_completed)
+                progress_data = [
+  
+                    (1, 1, 40.5, 8, 'Hoàn thành module đăng nhập'),
+                    (2, 1, 35.0, 6, 'Thiết kế giao diện chính'),
+                    (3, 1, 42.0, 12, 'Test các chức năng cơ bản'),
+                    (4, 1, 38.5, 5, 'Quản lý tiến độ dự án'),
+                    (5, 1, 45.0, 7, 'Cấu hình server và database'),
+                    
+             
+                    (1, 2, 44.0, 10, 'Phát triển API REST'),
+                    (2, 2, 40.0, 8, 'Hoàn thiện UI/UX'),
+                    (3, 2, 38.5, 15, 'Kiểm tra tích hợp hệ thống'),
+                    (4, 2, 42.0, 6, 'Lập kế hoạch sprint tiếp theo'),
+                    (5, 2, 41.5, 9, 'Triển khai môi trường production'),
+                    
+   
+                    (1, 3, 36.0, 7, 'Tối ưu hóa hiệu suất'),
+                    (3, 3, 40.0, 11, 'Regression testing')
+                ]
+                
+                insert_progress_query = """
+                INSERT INTO weekly_progress (member_id, week_number, hours_worked, tasks_completed, notes) 
+                VALUES (%s, %s, %s, %s, %s)
+                """
+                self.cursor.executemany(insert_progress_query, progress_data)
+                print(f"✓ Đã thêm {len(progress_data)} bản ghi tiến độ")
+            else:
+                print("✓ Dữ liệu tiến độ đã tồn tại")
+            
+            self.connection.commit()
+            return True
+            
+        except Error as e:
+            print(f"✗ Lỗi thêm dữ liệu: {e}")
+            self.connection.rollback()
+            return False
+    
+    def query_progress(self, week_number):
+        """
+        Truy vấn tiến độ của một tuần cụ thể
+        Sử dụng JOIN, WHERE, ORDER BY, LIMIT
+        """
+        try:
+            query = """
+            SELECT m.name, wp.hours_worked, wp.tasks_completed, wp.notes
             FROM members m
-            JOIN weekly_progress w ON m.member_id = w.member_id
-            GROUP BY m.member_id
+            JOIN weekly_progress wp ON m.member_id = wp.member_id
+            WHERE wp.week_number = %s
+            ORDER BY wp.tasks_completed DESC
+            LIMIT 5
+            """
+            
+            self.cursor.execute(query, (week_number,))
+            results = self.cursor.fetchall()
+            
+            if results:
+                print(f"\n📊 Tuần {week_number}:")
+                for name, hours, tasks, notes in results:
+                    print(f"- {name}: {hours} giờ, {tasks} nhiệm vụ, Ghi chú: {notes}")
+            else:
+                print(f"❌ Không có dữ liệu cho tuần {week_number}")
+            
+            return results
+            
+        except Error as e:
+            print(f"✗ Lỗi truy vấn tiến độ: {e}")
+            return []
+    
+    def update_progress(self, progress_id, new_hours, new_notes):
         """
-        cursor.execute(query)
-        results = cursor.fetchall()
-        print("Báo cáo tổng kết:")
-        for row in results:
-            print(f"- {row[0]}: Tổng {row[1]} giờ, {row[2]} nhiệm vụ")
-    except mysql.connector.Error as err:
-        print("Lỗi khi tạo báo cáo:", err)
-    finally:
-        cursor.close()
-        conn.close()
+        Cập nhật thông tin tiến độ của một bản ghi cụ thể
+        Sử dụng UPDATE và WHERE
+        """
+        try:
+        
+            check_query = "SELECT COUNT(*) FROM weekly_progress WHERE progress_id = %s"
+            self.cursor.execute(check_query, (progress_id,))
+            
+            if self.cursor.fetchone()[0] == 0:
+                print(f"❌ Không tìm thấy bản ghi với ID {progress_id}")
+                return False
+            
+     
+            update_query = """
+            UPDATE weekly_progress 
+            SET hours_worked = %s, notes = %s 
+            WHERE progress_id = %s
+            """
+            
+            self.cursor.execute(update_query, (new_hours, new_notes, progress_id))
+            self.connection.commit()
+            
+            if self.cursor.rowcount > 0:
+                print(f"✓ Đã cập nhật bản ghi ID {progress_id}: {new_hours} giờ, ghi chú: '{new_notes}'")
+                return True
+            else:
+                print(f"❌ Không thể cập nhật bản ghi ID {progress_id}")
+                return False
+                
+        except Error as e:
+            print(f"✗ Lỗi cập nhật tiến độ: {e}")
+            self.connection.rollback()
+            return False
+    
+    def delete_progress(self, week_number):
+        """
+        Xóa tất cả bản ghi tiến độ của một tuần cụ thể
+        Sử dụng DELETE và WHERE
+        """
+        try:
+         
+            check_query = "SELECT COUNT(*) FROM weekly_progress WHERE week_number = %s"
+            self.cursor.execute(check_query, (week_number,))
+            count = self.cursor.fetchone()[0]
+            
+            if count == 0:
+                print(f"❌ Không có bản ghi nào của tuần {week_number} để xóa")
+                return False
+            
+       
+            delete_query = "DELETE FROM weekly_progress WHERE week_number = %s"
+            self.cursor.execute(delete_query, (week_number,))
+            self.connection.commit()
+            
+            deleted_count = self.cursor.rowcount
+            print(f"✓ Đã xóa {deleted_count} bản ghi của tuần {week_number}")
+            return True
+            
+        except Error as e:
+            print(f"✗ Lỗi xóa dữ liệu: {e}")
+            self.connection.rollback()
+            return False
+    
+    def generate_summary(self):
+        """
+        Tạo báo cáo tổng kết cho tất cả thành viên
+        Sử dụng SELECT, JOIN, GROUP BY
+        """
+        try:
+            query = """
+            SELECT m.name, 
+                   SUM(wp.hours_worked) as total_hours, 
+                   SUM(wp.tasks_completed) as total_tasks
+            FROM members m
+            LEFT JOIN weekly_progress wp ON m.member_id = wp.member_id
+            GROUP BY m.member_id, m.name
+            ORDER BY total_hours DESC
+            """
+            
+            self.cursor.execute(query)
+            results = self.cursor.fetchall()
+            
+            print("\n📈 Báo cáo tổng kết:")
+            for name, total_hours, total_tasks in results:
+                hours = total_hours if total_hours else 0
+                tasks = total_tasks if total_tasks else 0
+                print(f"- {name}: Tổng {hours} giờ, {tasks} nhiệm vụ")
+            
+            return results
+            
+        except Error as e:
+            print(f"✗ Lỗi tạo báo cáo: {e}")
+            return []
+    
+    def cleanup_database(self, confirm=False):
+        """
+        Xóa bảng weekly_progress nếu được yêu cầu
+        Sử dụng DROP TABLE
+        """
+        try:
+            if not confirm:
+                response = input("Bạn có chắc chắn muốn xóa bảng 'weekly_progress'? (y/N): ")
+                if response.lower() != 'y':
+                    print("Hủy bỏ thao tác xóa bảng")
+                    return False
+            check_query = """
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = 'project_progress' 
+            AND table_name = 'weekly_progress'
+            """
+            self.cursor.execute(check_query)
+            if self.cursor.fetchone()[0] == 0:
+                print("Bảng 'weekly_progress' không tồn tại")
+                return False
+            self.cursor.execute("DROP TABLE weekly_progress")
+            self.connection.commit()
+            print("Đã xóa bảng 'weekly_progress'")
+            return True
+        except Error as e:
+            print(f"Lỗi xóa bảng: {e}")
+            return False
+    
+    def close_connection(self):
+        """Đóng kết nối database"""
+        try:
+            if self.cursor:
+                self.cursor.close()
+            if self.connection and self.connection.is_connected():
+                self.connection.close()
+                print("✓ Đã đóng kết nối MySQL")
+        except Error as e:
+            print(f"✗ Lỗi đóng kết nối: {e}")
 
-def cleanup_database():
-    """Xóa bảng weekly_progress nếu tồn tại."""
-    try:
-        conn = get_connection(DB_NAME)
-        cursor = conn.cursor()
-        # Kiểm tra bảng có tồn tại không
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM information_schema.tables
-            WHERE table_schema = %s AND table_name = 'weekly_progress'
-        """, (DB_NAME,))
-        if cursor.fetchone()[0]:
-            cursor.execute("DROP TABLE weekly_progress")
-            conn.commit()
-            print("Đã xóa bảng weekly_progress.")
-        else:
-            print("Bảng weekly_progress không tồn tại.")
-    except mysql.connector.Error as err:
-        print("Lỗi khi dọn dẹp database:", err)
-    finally:
-        cursor.close()
-        conn.close()
 
 def main():
-    setup_database()
-    add_data()
-    query_progress(1)  # Truy vấn tuần 1
-    # Lấy một progress_id để cập nhật (ví dụ: id=1)
-    update_progress(1, 45.0, "Hoàn thành sớm")
-    delete_progress(2)  # Xóa dữ liệu tuần 2
-    generate_summary()
-    # cleanup_database()  # Bỏ comment dòng này nếu muốn xóa bảng weekly_progress
+    """
+    Hàm chính - chạy toàn bộ hệ thống quản lý tiến độ dự án
+    """
+    print("🚀 Khởi động Hệ thống Quản lý Tiến độ Dự án Hàng tuần")
+    print("=" * 60)
+    
+
+    manager = ProjectProgressManager()
+    
+    try:
+
+        print("\n📡 BƯỚC 1: Kết nối MySQL")
+        if not manager.connect_to_mysql(
+            host='localhost',
+            user='root',
+            password='' 
+        ):
+            print("❌ Không thể tiếp tục do lỗi kết nối")
+            return
+        
+
+        print("\n🏗️  BƯỚC 2: Tạo Database và Bảng")
+        if not manager.setup_database():
+            print("❌ Không thể tạo database/bảng")
+            return
+        
+        
+        print("\n📝 BƯỚC 3: Thêm Dữ liệu Mẫu")
+        manager.add_data()
+
+        print("\n🔍 BƯỚC 4: Truy vấn Tiến độ")
+        manager.query_progress(1)
+        manager.query_progress(2)
+        
+
+        print("\n✏️  BƯỚC 5: Cập nhật Dữ liệu")
+        manager.update_progress(1, 45.0, "Hoàn thành sớm hơn dự kiến")
+        
+     
+        print("\n🗑️  BƯỚC 6: Xóa Dữ liệu")
+        manager.delete_progress(3)
+        
+   
+        print("\n📊 BƯỚC 7: Báo cáo Tổng kết")
+        manager.generate_summary()
+        
+
+        print("BƯỚC 8: Dọn dẹp (Tùy chọn)")
+        dapan = input("Bạn có muốn xóa bảng weekly_progress không? (y/N): ")
+        if dapan.lower() == 'y':
+            manager.cleanup_database(confirm=True)
+        print("Hoàn thành tất cả các bước!")
+        
+        print("\n✅ Hoàn thành tất cả các bước!")
+        
+    except KeyboardInterrupt:
+        print("\n⏹️  Chương trình bị ngắt bởi người dùng")
+    except Exception as e:
+        print(f"\n❌ Lỗi không mong muốn: {e}")
+    finally:
+        # Đóng kết nối
+        manager.close_connection()
+        print("\n👋 Cảm ơn bạn đã sử dụng hệ thống!")
+
 
 if __name__ == "__main__":
     main()
